@@ -1,5 +1,13 @@
+import { loadConfig } from "./config/config-parser";
 import { SyncTrayIcon } from "./tray/sync-tray-icon";
 import { YadTrayManager } from "./tray/tray-manager";
+
+try {
+  const config = loadConfig();
+  console.log(config);
+} catch (e) {
+  console.log((e as Error).message);
+}
 
 let isOn = true;
 
