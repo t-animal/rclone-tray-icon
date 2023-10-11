@@ -4,7 +4,7 @@
   "description": "Shows a tray icon for rclone bisync",
   "main": "index.ts",
   "scripts": {
-    "start": "ts-node index.ts",
+    "start": "ts-node src/index.ts",
     "lint": "npx prettier -w src/*ts src/**ts *js *json && npx eslint -f",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
