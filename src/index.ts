@@ -1,25 +1,30 @@
-import { YadTrayManager } from "./tray-icon";
+import { SyncTrayIcon } from "./sync-tray-icon";
+import { YadTrayManager } from "./tray-manager";
 
 let isOn = true;
 
 const trayManager = new YadTrayManager();
-trayManager.setMenu([{ text: "Quit", identifier: "quit" }]);
+const syncTrayIcon = new SyncTrayIcon(trayManager);
+syncTrayIcon.initializeMenu();
 
 function reflectState() {
   if (isOn) {
-    trayManager.setIcon("assets/sync_done.png").setText("Synchronized");
+    syncTrayIcon.setSyncEnabledAndDone();
   } else {
-    trayManager.setIcon("assets/sync_off.png").setText("Synchronization off");
+    syncTrayIcon.setSyncDisabled();
   }
 }
 
-trayManager.addEventListener("clicked", (event) => {
-  if (event.target === "quit") {
-    trayManager.close();
+syncTrayIcon.addEventListener((event) => {
+  if (event === "quit") {
+    syncTrayIcon.close();
     process.exit();
   }
 
-  isOn = !isOn;
+  if (event === "toggle-syncing") {
+    isOn = !isOn;
+  }
+
   reflectState();
 });
 
