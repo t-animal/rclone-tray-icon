@@ -1,5 +1,5 @@
-import { SyncTrayIcon } from "./sync-tray-icon";
-import { YadTrayManager } from "./tray-manager";
+import { SyncTrayIcon } from "./tray/sync-tray-icon";
+import { YadTrayManager } from "./tray/tray-manager";
 
 let isOn = true;
 
