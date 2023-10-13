@@ -13,5 +13,6 @@
     "node_modules/": true,
     ".vscode/": true
   },
-  "editor.tabSize": 2
+  "editor.tabSize": 2,
+  "cSpell.words": ["Rclone"]
 }
