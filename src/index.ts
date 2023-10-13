@@ -1,28 +1,79 @@
-import { loadConfig } from './config/config-parser';
-import { SyncTrayIcon } from './tray/sync-tray-icon';
-import { YadTrayManager } from './tray/tray-manager';
+import { Config } from "./config/config";
+import { loadConfig } from "./config/config-parser";
+import { RcloneWrapper } from "./rclone-wrapper";
+import { SyncTrayIcon } from "./tray/sync-tray-icon";
+import { YadTrayManager } from "./tray/tray-manager";
+
+type GlobalState = "enabled-and-done" | "disabled" | "syncing" | "error";
 
 function main() {
+  let config: Config;
+  let globalState: GlobalState = "enabled-and-done";
   try {
-    const config = loadConfig();
-    console.log(config);
+    config = loadConfig();
   } catch (e) {
-    console.log((e as Error).message);
+    console.error(`Cannot read configuration: ${(e as Error).message}`);
+    process.exit(1);
   }
-
-  let isOn = true;
 
   const trayManager = new YadTrayManager();
   const syncTrayIcon = new SyncTrayIcon(trayManager);
   syncTrayIcon.initializeMenu();
 
+  const wrappers = config.mounts.map(
+    (mount) => new RcloneWrapper(mount, config.rclone ?? "/usr/bin/rclone"),
+  );
+
   function reflectState() {
-    if (isOn) {
-      syncTrayIcon.setSyncEnabledAndDone();
-    } else {
-      syncTrayIcon.setSyncDisabled();
+    console.log("State is ", globalState);
+    switch (globalState) {
+      case "disabled":
+        wrappers.every((w) => w.disableSyncing());
+        syncTrayIcon.setSyncDisabled();
+        return;
+      case "enabled-and-done":
+        wrappers.every((w) => w.enableSyncing());
+        syncTrayIcon.setSyncEnabledAndDone();
+        return;
+      case "syncing":
+        syncTrayIcon.setSyncOngoing();
+        return;
+      case "error":
+        syncTrayIcon.setSyncError();
+        return;
+      default:
+        globalState satisfies never;
+        throw Error(`Unhandled state ${globalState}`);
     }
   }
+
+  wrappers.every((w) =>
+    w.addEventListener("syncing-started", () => {
+      globalState = "syncing";
+      reflectState();
+    }),
+  );
+
+  wrappers.every((w) =>
+    w.addEventListener("syncing-done", () => {
+      globalState = "enabled-and-done"; // todo: what if another one is syncing?
+      reflectState();
+    }),
+  );
+
+  wrappers.every((w) =>
+    w.addEventListener("syncing-aborted", () => {
+      globalState = "enabled-and-done";
+      reflectState();
+    }),
+  );
+
+  wrappers.every((w) =>
+    w.addEventListener("syncing-error", () => {
+      globalState = "error";
+      reflectState();
+    }),
+  );
 
   syncTrayIcon.addEventListener((event) => {
     if (event === "quit") {
@@ -31,7 +82,11 @@ function main() {
     }
 
     if (event === "toggle-syncing") {
-      isOn = !isOn;
+      if (globalState === "disabled") {
+        globalState = "enabled-and-done";
+      } else if (globalState === "enabled-and-done") {
+        globalState = "disabled";
+      }
     }
 
     reflectState();
