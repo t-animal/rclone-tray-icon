@@ -48,29 +48,24 @@ function main() {
   }
 
   wrappers.every((w) =>
-    w.addEventListener("syncing-started", () => {
-      globalState = "syncing";
-      reflectState();
-    }),
-  );
-
-  wrappers.every((w) =>
-    w.addEventListener("syncing-done", () => {
-      globalState = "enabled-and-done"; // todo: what if another one is syncing?
-      reflectState();
-    }),
-  );
-
-  wrappers.every((w) =>
-    w.addEventListener("syncing-aborted", () => {
-      globalState = "enabled-and-done";
-      reflectState();
-    }),
-  );
-
-  wrappers.every((w) =>
-    w.addEventListener("syncing-error", () => {
-      globalState = "error";
+    w.addEventListener("sync-state-change", (newState) => {
+      switch (newState) {
+        case "syncing-started":
+          globalState = "syncing";
+          break;
+        case "syncing-done":
+          globalState = "enabled-and-done"; // todo: what if another one is syncing?
+          break;
+        case "syncing-aborted":
+          globalState = "enabled-and-done";
+          break;
+        case "syncing-error":
+          globalState = "error";
+          break;
+        default:
+          newState satisfies never;
+          throw Error(`Unhandled state ${globalState}`);
+      }
       reflectState();
     }),
   );

@@ -2,14 +2,20 @@ import EventEmitter from "eventemitter3";
 
 import { Mount } from "./config/config";
 
-export type RcloneWrapperEvents =
+export type RcloneWrapperEventData =
   | "syncing-started"
   | "syncing-done"
   | "syncing-aborted"
   | "syncing-error";
 
+export type RcloneWrapperEventConfig = {
+  "sync-state-change": RcloneWrapperEventData;
+};
+export type RcloneWrapperEvents =
+  EventEmitter.EventNames<RcloneWrapperEventConfig>;
+
 export class RcloneWrapper {
-  private eventEmitter = new EventEmitter<RcloneWrapperEvents, void>();
+  private eventEmitter = new EventEmitter<RcloneWrapperEventConfig, void>();
 
   private intervalId: NodeJS.Timeout | null = null;
 
@@ -29,21 +35,23 @@ export class RcloneWrapper {
 
   public performSync() {
     console.log(`Syncing ${this.mount.path1}<>${this.mount.path2}`);
-    this.eventEmitter.emit("syncing-started");
+    this.eventEmitter.emit("sync-state-change", "syncing-started");
     setTimeout(() => {
       console.log(`Syncing done ${this.mount.path1}<>${this.mount.path2}`);
-      this.eventEmitter.emit("syncing-done");
+      this.eventEmitter.emit("sync-state-change", "syncing-done");
     }, 1000);
   }
 
   public abortSync() {}
 
-  public addEventListener = (event: RcloneWrapperEvents, handler: () => void) =>
-    this.eventEmitter.addListener(event, handler);
+  public addEventListener = (
+    event: RcloneWrapperEvents,
+    handler: (data: RcloneWrapperEventData) => void,
+  ) => this.eventEmitter.addListener(event, handler);
 
   public removeEventListener = (
     event: RcloneWrapperEvents,
-    handler: () => void,
+    handler: (data: RcloneWrapperEventData) => void,
   ) => this.eventEmitter.removeListener(event, handler);
 
   private startInterval() {
