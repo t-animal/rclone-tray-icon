@@ -1,6 +1,9 @@
 import { Config } from "./config/config";
 import { loadConfig } from "./config/config-parser";
-import { RcloneWrapper } from "./rclone-wrapper";
+import {
+  CompositeRcloneWrapper,
+  FakingRcloneWrapper,
+} from "./rclone-wrapper/rclone-wrapper";
 import { SyncTrayIcon } from "./tray/sync-tray-icon";
 import { YadTrayManager } from "./tray/tray-manager";
 
@@ -21,18 +24,19 @@ function main() {
   syncTrayIcon.initializeMenu();
 
   const wrappers = config.mounts.map(
-    (mount) => new RcloneWrapper(mount, config.rclone ?? "/usr/bin/rclone"),
+    (mount) =>
+      new FakingRcloneWrapper(mount, config.rclone ?? "/usr/bin/rclone"),
   );
+
+  const compositeWrapper = new CompositeRcloneWrapper(wrappers);
 
   function reflectState() {
     console.log("State is ", globalState);
     switch (globalState) {
       case "disabled":
-        wrappers.every((w) => w.disableSyncing());
         syncTrayIcon.setSyncDisabled();
         return;
       case "enabled-and-done":
-        wrappers.every((w) => w.enableSyncing());
         syncTrayIcon.setSyncEnabledAndDone();
         return;
       case "syncing":
@@ -47,28 +51,27 @@ function main() {
     }
   }
 
-  wrappers.every((w) =>
-    w.addEventListener("sync-state-change", (newState) => {
-      switch (newState) {
-        case "syncing-started":
-          globalState = "syncing";
-          break;
-        case "syncing-done":
-          globalState = "enabled-and-done"; // todo: what if another one is syncing?
-          break;
-        case "syncing-aborted":
-          globalState = "enabled-and-done";
-          break;
-        case "syncing-error":
-          globalState = "error";
-          break;
-        default:
-          newState satisfies never;
-          throw Error(`Unhandled state ${globalState}`);
-      }
-      reflectState();
-    }),
-  );
+  compositeWrapper.addEventListener("sync-state-change", (newState) => {
+    console.log("New composite state is", newState);
+    switch (newState) {
+      case "syncing-started":
+        globalState = "syncing";
+        break;
+      case "syncing-done":
+        globalState = "enabled-and-done";
+        break;
+      case "syncing-aborted":
+        globalState = "disabled"; // TODO: This relationship is not correct => "disabled" and "enabled-and-done" don't reflect immediately after icon press
+        break;
+      case "syncing-error":
+        globalState = "error";
+        break;
+      default:
+        newState satisfies never;
+        throw Error(`Unhandled state ${globalState}`);
+    }
+    reflectState();
+  });
 
   syncTrayIcon.addEventListener((event) => {
     if (event === "quit") {
@@ -78,15 +81,20 @@ function main() {
 
     if (event === "toggle-syncing") {
       if (globalState === "disabled") {
-        globalState = "enabled-and-done";
-      } else if (globalState === "enabled-and-done") {
-        globalState = "disabled";
+        return compositeWrapper.enableSyncing();
+      } else if (
+        globalState === "enabled-and-done" ||
+        globalState === "syncing"
+      ) {
+        return compositeWrapper.disableSyncing();
       }
-    }
 
-    reflectState();
+      globalState satisfies "error";
+      reflectState();
+    }
   });
 
+  compositeWrapper.enableSyncing();
   reflectState();
 }
 
