@@ -1,4 +1,5 @@
 import EventEmitter from "eventemitter3";
+import { ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 
 import { Mount } from "../config/config";
 import {
@@ -68,10 +69,11 @@ export class CompositeRcloneWrapper implements RcloneWrapper {
   ) => this.eventEmitter.removeListener(event, handler);
 }
 
-export class FakingRcloneWrapper implements RcloneWrapper {
+export class RcloneSpawningRcloneWrapper implements RcloneWrapper {
   private eventEmitter = new EventEmitter<RcloneWrapperEventConfig, void>();
 
   private intervalId: NodeJS.Timeout | null = null;
+  private rcloneProcess: ChildProcessWithoutNullStreams;
 
   constructor(
     public mount: Mount,
@@ -92,13 +94,27 @@ export class FakingRcloneWrapper implements RcloneWrapper {
 
   public performSync() {
     console.log(`Syncing ${this.mount.path1}<>${this.mount.path2}`);
-    this.eventEmitter.emit("sync-state-change", "syncing-started");
-    setTimeout(() => {
-      console.log(`Syncing done ${this.mount.path1}<>${this.mount.path2}`);
-      this.eventEmitter.emit("sync-state-change", "syncing-done");
-    }, 1000);
+    this.executeRclone()
+      .then(() =>
+        this.eventEmitter.emit("sync-state-change", "syncing-started"),
+      )
+      .catch(() =>
+        this.eventEmitter.emit("sync-state-change", "syncing-error"),
+      );
   }
 
+  private executeRclone() {
+    return new Promise<void>((resolve, reject) => {
+      this.rcloneProcess = spawn(this.pathToRclone, [
+        "bisync",
+        this.mount.path1,
+        this.mount.path2,
+      ]);
+      this.rcloneProcess.on("exit", (code) =>
+        code === 0 ? resolve() : reject(code),
+      );
+    });
+  }
 
   public abortSync() {}
 

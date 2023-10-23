@@ -2,7 +2,7 @@ import { Config } from "./config/config";
 import { loadConfig } from "./config/config-parser";
 import {
   CompositeRcloneWrapper,
-  FakingRcloneWrapper,
+  RcloneSpawningRcloneWrapper,
 } from "./rclone-wrapper/rclone-wrapper";
 import { SyncTrayIcon } from "./tray/sync-tray-icon";
 import { YadTrayManager } from "./tray/tray-manager";
@@ -25,7 +25,10 @@ function main() {
 
   const wrappers = config.mounts.map(
     (mount) =>
-      new FakingRcloneWrapper(mount, config.rclone ?? "/usr/bin/rclone"),
+      new RcloneSpawningRcloneWrapper(
+        mount,
+        config.rclone ?? "/usr/bin/rclone",
+      ),
   );
 
   const compositeWrapper = new CompositeRcloneWrapper(wrappers);
