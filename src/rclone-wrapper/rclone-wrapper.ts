@@ -4,8 +4,8 @@ import { Mount } from "../config/config";
 import {
   RcloneWrapper,
   RcloneWrapperEventConfig,
-  RcloneWrapperState,
   RcloneWrapperEvents,
+  RcloneWrapperState,
 } from "./wrapper";
 
 export class CompositeRcloneWrapper implements RcloneWrapper {
@@ -14,7 +14,7 @@ export class CompositeRcloneWrapper implements RcloneWrapper {
 
   constructor(wrappersToHandle: RcloneWrapper[]) {
     for (const wrapper of wrappersToHandle) {
-      this.handledWrappers.set(wrapper, "syncing-done");
+      this.handledWrappers.set(wrapper, "syncing-enabled-and-done");
 
       wrapper.addEventListener("sync-state-change", (state) => {
         this.handledWrappers.set(wrapper, state);
@@ -38,11 +38,11 @@ export class CompositeRcloneWrapper implements RcloneWrapper {
     if (states.some(equals("syncing-error"))) {
       return "syncing-error";
     }
-    if (states.some(equals("syncing-aborted"))) {
-      return "syncing-aborted";
+    if (states.some(equals("syncing-paused"))) {
+      return "syncing-paused";
     }
-    if (states.some(equals("syncing-done"))) {
-      return "syncing-done";
+    if (states.some(equals("syncing-enabled-and-done"))) {
+      return "syncing-enabled-and-done";
     }
 
     throw Error("Not all states handled when determining composite state");
@@ -81,11 +81,13 @@ export class FakingRcloneWrapper implements RcloneWrapper {
   public enableSyncing() {
     console.log("enabling", this.mount);
     this.startInterval();
+    this.eventEmitter.emit("sync-state-change", "syncing-enabled-and-done");
   }
 
   public disableSyncing() {
     this.stopInterval();
     this.abortSync();
+    this.eventEmitter.emit("sync-state-change", "syncing-paused");
   }
 
   public performSync() {
@@ -97,9 +99,8 @@ export class FakingRcloneWrapper implements RcloneWrapper {
     }, 1000);
   }
 
-  public abortSync() {
-    this.eventEmitter.emit("sync-state-change", "syncing-aborted");
-  }
+
+  public abortSync() {}
 
   public addEventListener = (
     event: RcloneWrapperEvents,

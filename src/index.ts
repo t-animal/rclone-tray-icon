@@ -57,11 +57,11 @@ function main() {
       case "syncing-started":
         globalState = "syncing";
         break;
-      case "syncing-done":
+      case "syncing-enabled-and-done":
         globalState = "enabled-and-done";
         break;
-      case "syncing-aborted":
-        globalState = "disabled"; // TODO: This relationship is not correct => "disabled" and "enabled-and-done" don't reflect immediately after icon press
+      case "syncing-paused":
+        globalState = "disabled";
         break;
       case "syncing-error":
         globalState = "error";

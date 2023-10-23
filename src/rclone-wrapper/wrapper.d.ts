@@ -2,8 +2,8 @@ import EventEmitter from "eventemitter3";
 
 export type RcloneWrapperState =
   | "syncing-started"
-  | "syncing-done"
-  | "syncing-aborted"
+  | "syncing-enabled-and-done"
+  | "syncing-paused"
   | "syncing-error";
 
 export type RcloneWrapperEventConfig = {
